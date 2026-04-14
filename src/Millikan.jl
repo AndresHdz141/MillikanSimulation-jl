@@ -1,7 +1,9 @@
 module Millikan
 export Oil_Particle
 export Environment
-export runSim
+export runSim_Efield_Off
+export runSim_Efield_on
+
 export getInfo
 export saveData
 export calcErrorPorc
@@ -14,7 +16,7 @@ using JLD2
 Base.@kwdef mutable struct Oil_Particle        #Caracteristicas de la particula
 r::Float64                       #m^2
 mass::Float64 = 0.0              #kg    - Depends on radius r
-pos::Vector{Float64}             #m
+pos::Vector{Float64} = [0.0,1e-5,0.0]#m
 vel::Vector{Float64} = [0,0,0]   #m/s
 acc::Vector{Float64} = [0,0,0]   #m/s^2
 chargeQ::Float64                 #C
@@ -30,9 +32,9 @@ end
 function getInfo(p::Oil_Particle)
 println("||")
 println("Mass:", p.mass, "kg")
-println("Volume:", p.volume, "kg/m^3")
+println("Volume:", p.volume, "m^3")
 println("Charge:", p.chargeQ, "C")
-println("Radius:", p.r, "kg \n")
+println("Radius:", p.r, "m")
 println("||")
 end
 
@@ -86,11 +88,13 @@ end
 
 #Fuerza de arrastre
 function DragForce(p::Oil_Particle, env::Environment, velocity::Vector)
-    return -6*env.eta*pi*p.r*velocity
+    return -6*env.eta*pi*p.r *velocity
 end
 #Fuerza Electrica
 function ElectricForce(p::Oil_Particle, env::Environment)
-    return p.chargeQ*(p.voltage*env.distance_d)
+    d_mag = norm(env.distance_d)
+    F_e = p.chargeQ .*(p.voltage/d_mag) .* (env.distance_d ./d_mag)
+    return F_e
 end
 function ForcesCalc(p::Oil_Particle, env::Environment, vel::Vector)
     Fg = GForce(p,env)
@@ -125,11 +129,17 @@ function calcErrorPorc(t, e)
     return abs((t-e)/t)
 end
 
-function runSim(p::Oil_Particle,env::Environment, dt::Float64, steps::Int, error::Float64)
+
+
+function runSim_Efield_Off(p::Oil_Particle,env::Environment, dt::Float64, steps::Int, error::Float64)
     p.volume = (4/3)*pi * p.r^3
     p.mass = p.volume * env.rho_oil
-    getInfo(p)
     vel_error = 1.0
+    p.voltage = 0 #V
+    p.pos = [0.0,1e-5,0.0]
+    p.vel = [0,0,0]
+    p.acc = [0,0,0]
+    getInfo(p)
     pos_history = zeros(Float64, 3, steps)
     time_steps = zeros(Float64,steps)
     dt_accum = 0.0
@@ -147,10 +157,33 @@ function runSim(p::Oil_Particle,env::Environment, dt::Float64, steps::Int, error
     println("Vel_Error> ", vel_error )
 
     p.velocity_t = p.vel
-    p.radius_theoric = sqrt((9*env.eta*norm(p.velocity_t))/(-2*env.g[2]*(env.rho_oil - env.rho_air)))
+    p.radius_theoric = sqrt((9*env.eta*norm(p.velocity_t))/(2*norm(env.g)*(env.rho_oil - env.rho_air)))
 
     return pos_history, time_steps
 
 end
+
+function runSim_Efield_on(p::Oil_Particle, env::Environment, dt::Float64, steps::Int, error::Float64, volt::Float64)
+    vel_error = 1.0
+    i = 1
+    p.voltage = volt #V
+    p.pos = [0.0,1e-5,0.0]
+    p.vel = [0,0,0]
+    p.acc = [0,0,0]
+
+    while i<=steps && vel_error>=error      #Obtener velocidad terminal realizando la simulacion con V = 0
+            past_vel_y = p.vel[2]
+            RK4!(p,env, dt)
+            vel_error = calcErrorPorc(past_vel_y, p.vel[2])
+            #println(dt_accum, "|", p.pos)
+            i +=1
+    end
+    println("Vel_Error> ", vel_error )
+    p.velocity_s = p.vel
+    p.charge_theoric = (6*pi*p.radius_theoric*env.eta*norm(env.distance_d)/(p.voltage))*(norm(p.velocity_t)+norm(p.velocity_s))
+
+end
+
+
 
 end
