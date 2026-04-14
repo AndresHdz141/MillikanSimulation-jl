@@ -26,7 +26,6 @@ velocity_s::Vector{Float64} = [0,0,0]   #m/s  -
 charge_theoric::Float64 = 0.0
 radius_theoric::Float64 = 0.0
 voltage::Float64 = 0.0
-
 end
 
 function getInfo(p::Oil_Particle)
