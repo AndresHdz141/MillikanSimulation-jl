@@ -21,6 +21,10 @@ Millikan.getInfo(particle)
 for (i, step_data) in enumerate(eachcol(tray))
         println(dt_steps[i], " sec | Pos: ", step_data)
     end
+
+plotter(tray, dt_steps)
+
+
 end
 
 run_sim()

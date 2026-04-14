@@ -58,7 +58,7 @@ function RK4!(p::Oil_Particle,env::Environment, dt::Float64)
 #Stage 4
     vel4 = p.vel .+ dt .*acc3
     acc4 = ForcesCalc(p, env, vel4)/p.mass
-#Final Vallues
+#Final Values
     p.pos .+= (dt/6) .* (vel1 .+ 2 .* vel2 .+ 2 .* vel3 .+ vel4)
     p.vel .+= (dt / 6) .* (acc1 .+ 2 .* acc2 .+ 2 .* acc3 .+ acc4)
     p.acc .= ForcesCalc(p,env,p.vel) /p.mass
